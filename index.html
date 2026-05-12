@@ -6,45 +6,58 @@
     <title>Porter's Meal Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 min-h-screen p-4 font-sans">
-    <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
+<body class="bg-gray-100 min-h-screen p-4 font-sans pb-20">
+    <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6 mb-4">
         <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">Porter's Meals 🐾</h1>
         
-        <div class="space-y-6">
+        <div id="form-container" class="space-y-6">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Which Meal?</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2 font-bold">WHICH MEAL?</label>
                 <div class="grid grid-cols-2 gap-4">
-                    <button onclick="setMeal('Breakfast')" id="btn-Breakfast" class="meal-btn border-2 py-3 rounded-lg font-semibold border-gray-200 text-gray-600">Breakfast</button>
-                    <button onclick="setMeal('Dinner')" id="btn-Dinner" class="meal-btn border-2 py-3 rounded-lg font-semibold border-gray-200 text-gray-600">Dinner</button>
+                    <button onclick="setMeal('Breakfast')" id="btn-Breakfast" class="meal-btn border-2 py-4 rounded-lg font-bold border-gray-200 text-gray-600 transition-all">Breakfast</button>
+                    <button onclick="setMeal('Dinner')" id="btn-Dinner" class="meal-btn border-2 py-4 rounded-lg font-bold border-gray-200 text-gray-600 transition-all">Dinner</button>
                 </div>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">How much did he eat?</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2 font-bold">STATUS</label>
                 <div class="grid grid-cols-3 gap-2">
-                    <button onclick="setStatus('Ate')" id="btn-Ate" class="status-btn border-2 py-2 rounded-lg text-sm border-gray-200 text-gray-600">Ate All</button>
-                    <button onclick="setStatus('Partial')" id="btn-Partial" class="status-btn border-2 py-2 rounded-lg text-sm border-gray-200 text-gray-600">Partial</button>
-                    <button onclick="setStatus('Skipped')" id="btn-Skipped" class="status-btn border-2 py-2 rounded-lg text-sm border-gray-200 text-gray-600">Skipped</button>
+                    <button onclick="setStatus('Ate')" id="btn-Ate" class="status-btn border-2 py-3 rounded-lg text-sm font-bold border-gray-200 text-gray-600">Ate All</button>
+                    <button onclick="setStatus('Partial')" id="btn-Partial" class="status-btn border-2 py-3 rounded-lg text-sm font-bold border-gray-200 text-gray-600">Partial</button>
+                    <button onclick="setStatus('Skipped')" id="btn-Skipped" class="status-btn border-2 py-3 rounded-lg text-sm font-bold border-gray-200 text-gray-600">Skipped</button>
                 </div>
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
-                <textarea id="notes" class="w-full border-2 border-gray-200 rounded-lg p-2 h-20 focus:outline-none focus:border-blue-500" placeholder="e.g. Added pumpkin, seemed lethargic..."></textarea>
+                <label class="block text-sm font-medium text-gray-700 mb-2 font-bold text-xs uppercase text-gray-500">Notes (Optional)</label>
+                <textarea id="notes" class="w-full border-2 border-gray-200 rounded-lg p-3 h-24 focus:outline-none focus:border-blue-500" placeholder="e.g. Added toppers, mood..."></textarea>
             </div>
 
-            <button onclick="submitLog()" id="submit-btn" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-transform">Log Meal</button>
+            <button onclick="submitLog()" id="submit-btn" class="w-full bg-blue-600 text-white font-black text-lg py-5 rounded-xl shadow-lg active:scale-95 transition-transform uppercase tracking-wider">Log Meal</button>
             
-            <hr class="my-6">
-            
-            <button onclick="exportData()" class="w-full border-2 border-green-500 text-green-600 font-bold py-2 rounded-lg hover:bg-green-50">Export Report (CSV)</button>
+            <div id="success-toast" class="hidden bg-green-500 text-white text-center font-bold py-3 rounded-lg animate-bounce">
+                ✅ MEAL LOGGED SUCCESSFULLY!
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 mt-4">
+                <button onclick="toggleHistory()" class="w-full bg-gray-800 text-white font-bold py-3 rounded-lg">View History</button>
+                <button onclick="exportData()" class="w-full border-2 border-green-600 text-green-700 font-bold py-3 rounded-lg">Export CSV</button>
+            </div>
         </div>
-        <p id="msg" class="mt-4 text-center text-sm font-medium"></p>
+
+        <div id="history-container" class="hidden mt-6 space-y-4">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800 underline">Recent History</h2>
+                <button onclick="toggleHistory()" class="text-blue-600 font-bold text-sm uppercase">Close</button>
+            </div>
+            <div id="history-list" class="max-h-96 overflow-y-auto space-y-3 pr-2">
+                </div>
+        </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, orderBy, getDocs, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDH5QxUSCg8Rt9xR4_9puiTwo-ml4jKjhM",
@@ -63,25 +76,30 @@
 
         window.setMeal = (meal) => {
             selectedMeal = meal;
-            document.querySelectorAll('.meal-btn').forEach(b => b.classList.remove('bg-blue-50', 'border-blue-500', 'text-blue-600'));
-            document.getElementById('btn-' + meal).classList.add('bg-blue-50', 'border-blue-500', 'text-blue-600');
+            document.querySelectorAll('.meal-btn').forEach(b => b.classList.remove('bg-blue-600', 'text-white', 'border-blue-600'));
+            document.getElementById('btn-' + meal).classList.add('bg-blue-600', 'text-white', 'border-blue-600');
         };
 
         window.setStatus = (status) => {
             selectedStatus = status;
-            document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('bg-green-50', 'border-green-500', 'text-green-600'));
-            document.getElementById('btn-' + status).classList.add('bg-green-50', 'border-green-500', 'text-green-600');
+            document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('bg-green-600', 'text-white', 'border-green-600', 'bg-red-600', 'border-red-600', 'bg-yellow-500', 'border-yellow-500'));
+            
+            const btn = document.getElementById('btn-' + status);
+            if(status === 'Ate') btn.classList.add('bg-green-600', 'text-white', 'border-green-600');
+            if(status === 'Partial') btn.classList.add('bg-yellow-500', 'text-white', 'border-yellow-500');
+            if(status === 'Skipped') btn.classList.add('bg-red-600', 'text-white', 'border-red-600');
         };
 
         window.submitLog = async () => {
             if (!selectedMeal || !selectedStatus) {
-                alert("Please select both a meal and a status.");
+                alert("Select Meal & Status first!");
                 return;
             }
             
             const btn = document.getElementById('submit-btn');
+            const toast = document.getElementById('success-toast');
             btn.disabled = true;
-            btn.innerText = "Logging...";
+            btn.innerText = "UPDATING CLOUD...";
 
             try {
                 await addDoc(collection(db, "meals"), {
@@ -91,12 +109,18 @@
                     status: selectedStatus,
                     notes: document.getElementById('notes').value
                 });
-                document.getElementById('msg').innerText = "Logged successfully!";
-                document.getElementById('msg').classList.add('text-green-600');
-                // Reset form
+                
+                // Success UI
+                toast.classList.remove('hidden');
+                
+                // RESET FORM
+                selectedMeal = '';
+                selectedStatus = '';
                 document.getElementById('notes').value = '';
+                document.querySelectorAll('.meal-btn, .status-btn').forEach(b => b.classList.remove('bg-blue-600', 'bg-green-600', 'bg-red-600', 'bg-yellow-500', 'text-white', 'border-blue-600', 'border-green-600', 'border-red-600', 'border-yellow-500'));
+                
+                setTimeout(() => { toast.classList.add('hidden'); }, 3000);
             } catch (e) {
-                console.error(e);
                 alert("Error saving data.");
             } finally {
                 btn.disabled = false;
@@ -104,21 +128,57 @@
             }
         };
 
+        window.toggleHistory = async () => {
+            const hist = document.getElementById('history-container');
+            const form = document.getElementById('form-container');
+            
+            if (hist.classList.contains('hidden')) {
+                hist.classList.remove('hidden');
+                form.classList.add('hidden');
+                loadHistory();
+            } else {
+                hist.classList.add('hidden');
+                form.classList.remove('hidden');
+            }
+        };
+
+        async function loadHistory() {
+            const list = document.getElementById('history-list');
+            list.innerHTML = "Loading history...";
+            
+            const q = query(collection(db, "meals"), orderBy("timestamp", "desc"), limit(50));
+            const snap = await getDocs(q);
+            
+            list.innerHTML = "";
+            snap.forEach(doc => {
+                const d = doc.data();
+                const colorClass = d.status === 'Ate' ? 'text-green-600' : (d.status === 'Skipped' ? 'text-red-600' : 'text-yellow-600');
+                const card = `
+                    <div class="border-b pb-2">
+                        <div class="flex justify-between font-bold text-sm">
+                            <span>${d.date} - ${d.meal}</span>
+                            <span class="${colorClass}">${d.status.toUpperCase()}</span>
+                        </div>
+                        ${d.notes ? `<p class="text-xs text-gray-500 italic mt-1">${d.notes}</p>` : ''}
+                    </div>
+                `;
+                list.innerHTML += card;
+            });
+        }
+
         window.exportData = async () => {
             const q = query(collection(db, "meals"), orderBy("timestamp", "desc"));
             const querySnapshot = await getDocs(q);
             let csv = "Date,Meal,Status,Notes\n";
-            
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
                 csv += `${data.date},${data.meal},${data.status},"${data.notes.replace(/"/g, '""')}"\n`;
             });
-
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.setAttribute('href', url);
-            a.setAttribute('download', `porter_meal_report_${new Date().toLocaleDateString()}.csv`);
+            a.setAttribute('download', `porter_report.csv`);
             a.click();
         };
     </script>
