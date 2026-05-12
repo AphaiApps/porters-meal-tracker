@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Porter's Meal Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 font-sans">
+    <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
+        <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">Porter's Meals 🐾</h1>
+        
+        <div class="space-y-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Which Meal?</label>
+                <div class="grid grid-cols-2 gap-4">
+                    <button onclick="setMeal('Breakfast')" id="btn-Breakfast" class="meal-btn border-2 py-3 rounded-lg font-semibold border-gray-200 text-gray-600">Breakfast</button>
+                    <button onclick="setMeal('Dinner')" id="btn-Dinner" class="meal-btn border-2 py-3 rounded-lg font-semibold border-gray-200 text-gray-600">Dinner</button>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">How much did he eat?</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="setStatus('Ate')" id="btn-Ate" class="status-btn border-2 py-2 rounded-lg text-sm border-gray-200 text-gray-600">Ate All</button>
+                    <button onclick="setStatus('Partial')" id="btn-Partial" class="status-btn border-2 py-2 rounded-lg text-sm border-gray-200 text-gray-600">Partial</button>
+                    <button onclick="setStatus('Skipped')" id="btn-Skipped" class="status-btn border-2 py-2 rounded-lg text-sm border-gray-200 text-gray-600">Skipped</button>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
+                <textarea id="notes" class="w-full border-2 border-gray-200 rounded-lg p-2 h-20 focus:outline-none focus:border-blue-500" placeholder="e.g. Added pumpkin, seemed lethargic..."></textarea>
+            </div>
+
+            <button onclick="submitLog()" id="submit-btn" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition-transform">Log Meal</button>
+            
+            <hr class="my-6">
+            
+            <button onclick="exportData()" class="w-full border-2 border-green-500 text-green-600 font-bold py-2 rounded-lg hover:bg-green-50">Export Report (CSV)</button>
+        </div>
+        <p id="msg" class="mt-4 text-center text-sm font-medium"></p>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, query, orderBy, getDocs, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDH5QxUSCg8Rt9xR4_9puiTwo-ml4jKjhM",
+            authDomain: "porters-meal-tracker.firebaseapp.com",
+            projectId: "porters-meal-tracker",
+            storageBucket: "porters-meal-tracker.firebasestorage.app",
+            messagingSenderId: "578808944486",
+            appId: "1:578808944486:web:cc5690461ec6ee2d7fdaa7"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let selectedMeal = '';
+        let selectedStatus = '';
+
+        window.setMeal = (meal) => {
+            selectedMeal = meal;
+            document.querySelectorAll('.meal-btn').forEach(b => b.classList.remove('bg-blue-50', 'border-blue-500', 'text-blue-600'));
+            document.getElementById('btn-' + meal).classList.add('bg-blue-50', 'border-blue-500', 'text-blue-600');
+        };
+
+        window.setStatus = (status) => {
+            selectedStatus = status;
+            document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('bg-green-50', 'border-green-500', 'text-green-600'));
+            document.getElementById('btn-' + status).classList.add('bg-green-50', 'border-green-500', 'text-green-600');
+        };
+
+        window.submitLog = async () => {
+            if (!selectedMeal || !selectedStatus) {
+                alert("Please select both a meal and a status.");
+                return;
+            }
+            
+            const btn = document.getElementById('submit-btn');
+            btn.disabled = true;
+            btn.innerText = "Logging...";
+
+            try {
+                await addDoc(collection(db, "meals"), {
+                    timestamp: Timestamp.now(),
+                    date: new Date().toLocaleDateString(),
+                    meal: selectedMeal,
+                    status: selectedStatus,
+                    notes: document.getElementById('notes').value
+                });
+                document.getElementById('msg').innerText = "Logged successfully!";
+                document.getElementById('msg').classList.add('text-green-600');
+                // Reset form
+                document.getElementById('notes').value = '';
+            } catch (e) {
+                console.error(e);
+                alert("Error saving data.");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Log Meal";
+            }
+        };
+
+        window.exportData = async () => {
+            const q = query(collection(db, "meals"), orderBy("timestamp", "desc"));
+            const querySnapshot = await getDocs(q);
+            let csv = "Date,Meal,Status,Notes\n";
+            
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                csv += `${data.date},${data.meal},${data.status},"${data.notes.replace(/"/g, '""')}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', `porter_meal_report_${new Date().toLocaleDateString()}.csv`);
+            a.click();
+        };
+    </script>
+</body>
+</html>
