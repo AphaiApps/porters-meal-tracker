@@ -38,7 +38,7 @@
                 <textarea id="notes" class="w-full border-2 border-gray-200 rounded-lg p-3 h-24 focus:outline-none focus:border-blue-500" placeholder="e.g. Added toppers..."></textarea>
             </div>
 
-            <button onclick="submitLog()" id="submit-btn" class="w-full bg-blue-600 text-white font-black text-lg py-5 rounded-xl shadow-lg active:scale-95 transition-transform uppercase tracking-wider">Log Meal</button>
+            <button onclick="submitLog()" id="submit-btn" class="w-full bg-blue-600 text-white font-black text-lg py-5 rounded-xl shadow-lg active:scale-95 transition-transform uppercase tracking-wider text-center">Log Meal</button>
             
             <div id="success-toast" class="hidden bg-green-500 text-white text-center font-bold py-3 rounded-lg animate-bounce">
                 ✅ MEAL LOGGED SUCCESSFULLY!
@@ -52,11 +52,10 @@
 
         <div id="history-container" class="hidden mt-6 space-y-4">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-gray-800 underline">Recent History</h2>
+                <h2 class="text-xl font-bold text-gray-800 underline uppercase tracking-tight">Recent History</h2>
                 <button onclick="toggleHistory()" class="text-blue-600 font-bold text-sm uppercase">Close</button>
             </div>
-            <div id="history-list" class="max-h-96 overflow-y-auto space-y-3 pr-2 text-sm">
-                </div>
+            <div id="history-list" class="max-h-96 overflow-y-auto space-y-3 pr-2 text-sm"></div>
         </div>
     </div>
 
@@ -76,10 +75,8 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Set default date to today
         const dateInput = document.getElementById('meal-date');
-        const today = new Date().toISOString().split('T')[0];
-        dateInput.value = today;
+        dateInput.value = new Date().toISOString().split('T')[0];
 
         let selectedMeal = '';
         let selectedStatus = '';
@@ -104,13 +101,11 @@
                 alert("Select Meal & Status first!");
                 return;
             }
-            
             const btn = document.getElementById('submit-btn');
             const toast = document.getElementById('success-toast');
             btn.disabled = true;
             btn.innerText = "UPDATING...";
 
-            // Use selected date instead of "now" for the data point
             const chosenDate = new Date(dateInput.value + 'T12:00:00'); 
 
             try {
@@ -121,15 +116,11 @@
                     status: selectedStatus,
                     notes: document.getElementById('notes').value
                 });
-                
                 toast.classList.remove('hidden');
-                
-                // RESET FORM (Keep date on whatever was last used or reset to today)
                 selectedMeal = '';
                 selectedStatus = '';
                 document.getElementById('notes').value = '';
                 document.querySelectorAll('.meal-btn, .status-btn').forEach(b => b.classList.remove('bg-blue-600', 'bg-green-600', 'bg-red-600', 'bg-yellow-500', 'text-white', 'border-blue-600', 'border-green-600', 'border-red-600', 'border-yellow-500'));
-                
                 setTimeout(() => { toast.classList.add('hidden'); }, 3000);
             } catch (e) {
                 alert("Error saving data.");
@@ -160,12 +151,15 @@
             list.innerHTML = "";
             snap.forEach(doc => {
                 const d = doc.data();
+                // FAIL-SAFE: Check for displayDate, then date, then format the timestamp as a last resort
+                const dateToShow = d.displayDate || d.date || (d.timestamp ? d.timestamp.toDate().toLocaleDateString() : "Unknown Date");
+                
                 const colorClass = d.status === 'Ate' ? 'text-green-600' : (d.status === 'Skipped' ? 'text-red-600' : 'text-yellow-600');
                 const card = `
                     <div class="border-b pb-2">
                         <div class="flex justify-between font-bold">
-                            <span>${d.displayDate} - ${d.meal}</span>
-                            <span class="${colorClass}">${d.status.toUpperCase()}</span>
+                            <span>${dateToShow} - ${d.meal}</span>
+                            <span class="${colorClass}">${(d.status || 'Unknown').toUpperCase()}</span>
                         </div>
                         ${d.notes ? `<p class="text-xs text-gray-500 italic mt-1">${d.notes}</p>` : ''}
                     </div>
@@ -179,8 +173,9 @@
             const querySnapshot = await getDocs(q);
             let csv = "Date,Meal,Status,Notes\n";
             querySnapshot.forEach((doc) => {
-                const data = doc.data();
-                csv += `${data.displayDate},${data.meal},${data.status},"${(data.notes || "").replace(/"/g, '""')}"\n`;
+                const d = doc.data();
+                const dateToShow = d.displayDate || d.date || (d.timestamp ? d.timestamp.toDate().toLocaleDateString() : "Unknown");
+                csv += `${dateToShow},${d.meal},${d.status},"${(d.notes || "").replace(/"/g, '""')}"\n`;
             });
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
