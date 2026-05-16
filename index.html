@@ -5,6 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Porter's Meal Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Define the core user colors as variables for easy reuse */
+        :root {
+            --nick-green: #166534; /* emerald-800 - dark forest green */
+            --sam-blue-teal: #0d9488; /* teal-600 - customized to be slightly more blue, a rich deep teal */
+            --evie-pink: #f472b6; /* pink-400 - bubble gum pink */
+        }
+
+        /* Set the static, default colors for each button */
+        #btn-Nick { background-color: var(--nick-green); color: white; border-color: var(--nick-green); }
+        #btn-Sam { background-color: var(--sam-blue-teal); color: white; border-color: var(--sam-blue-teal); }
+        #btn-Evie { background-color: var(--evie-pink); color: white; border-color: var(--evie-pink); }
+
+        /* A scale-down click animation for touch feedback on all interactive buttons */
+        .meal-btn:active, .status-btn:active, .fed-btn:active {
+            transform: scale(0.95);
+        }
+        
+        /* Transition effect for a smooth state change when selected */
+        .fed-btn {
+            transition: all 0.2s ease-in-out;
+        }
+
+        /* --- THE SUBTLE EFFECT FOR THE SELECTED PERSON --- */
+        
+        /* A thick, glowing internal border makes the selected button look like it's pressed in */
+        .fed-btn.is-selected {
+            box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.7);
+            border-color: rgba(255, 255, 255, 0.9);
+            transform: translateY(2px); /* Makes it appear physically pressed */
+        }
+
+        /* We also dim the buttons *that are NOT selected* to make the choice pop */
+        .is-dimmed {
+            opacity: 0.4;
+        }
+    </style>
 </head>
 <body class="bg-gray-100 min-h-screen p-4 font-sans pb-20">
     <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6 mb-4">
@@ -36,18 +73,18 @@
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2 font-bold uppercase text-xs text-gray-500">Who Fed Him?</label>
                 <div class="grid grid-cols-3 gap-2">
-                    <button onclick="setFedBy('Nick')" id="btn-Nick" class="fed-btn border-2 py-3 rounded-lg text-sm font-bold border-gray-200 text-gray-600 transition-all">Nick</button>
-                    <button onclick="setFedBy('Sam')" id="btn-Sam" class="fed-btn border-2 py-3 rounded-lg text-sm font-bold border-gray-200 text-gray-600 transition-all">Sam</button>
-                    <button onclick="setFedBy('Evie')" id="btn-Evie" class="fed-btn border-2 py-3 rounded-lg text-sm font-bold border-gray-200 text-gray-600 transition-all">Evie</button>
+                    <button onclick="setFedBy('Nick')" id="btn-Nick" class="fed-btn border-2 py-3 rounded-lg text-sm font-bold shadow-sm">Nick</button>
+                    <button onclick="setFedBy('Sam')" id="btn-Sam" class="fed-btn border-2 py-3 rounded-lg text-sm font-bold shadow-sm">Sam</button>
+                    <button onclick="setFedBy('Evie')" id="btn-Evie" class="fed-btn border-2 py-3 rounded-lg text-sm font-bold shadow-sm">Evie</button>
                 </div>
             </div>
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2 font-bold text-xs uppercase text-gray-500">Notes (Optional)</label>
-                <textarea id="notes" class="w-full border-2 border-gray-200 rounded-lg p-3 h-24 focus:outline-none focus:border-blue-500" placeholder="e.g. Added toppers..."></textarea>
+                <textarea id="notes" class="w-full border-2 border-gray-200 rounded-lg p-3 h-24 focus:outline-none focus:border-blue-500" placeholder="e.g. Mood, behavior..."></textarea>
             </div>
 
-            <button onclick="submitLog()" id="submit-btn" class="w-full bg-blue-600 text-white font-black text-lg py-5 rounded-xl shadow-lg active:scale-95 transition-transform uppercase tracking-wider text-center">Log Meal</button>
+            <button onclick="submitLog()" id="submit-btn" class="w-full bg-blue-600 text-white font-black text-lg py-5 rounded-xl shadow-lg transition-transform uppercase tracking-wider text-center">Log Meal</button>
             
             <div id="success-toast" class="hidden bg-green-500 text-white text-center font-bold py-3 rounded-lg animate-bounce">
                 ✅ MEAL LOGGED SUCCESSFULLY!
@@ -69,24 +106,30 @@
     </div>
 
     <script type="module">
+        // --- Core Firebase Initialization (Using CDN/Script Tag) ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+        // Place your unique configuration object here
         const firebaseConfig = {
-            apiKey: "AIzaSyDH5QxUSCg8Rt9xR4_9puiTwo-ml4jKjhM",
+            apiKey: "AIza...",
             authDomain: "porters-meal-tracker.firebaseapp.com",
             projectId: "porters-meal-tracker",
-            storageBucket: "porters-meal-tracker.firebasestorage.app",
-            messagingSenderId: "578808944486",
-            appId: "1:578808944486:web:cc5690461ec6ee2d7fdaa7"
+            storageBucket: "...",
+            messagingSenderId: "...",
+            appId: "..."
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        // --- App Functionality ---
+
+        // Set default form date to today (YYYY-MM-DD format for the native picker)
         const dateInput = document.getElementById('meal-date');
         dateInput.value = new Date().toISOString().split('T')[0];
 
+        // Formats YYYY-MM-DD or other raw strings into an American MM/DD/YYYY
         function formatDate(dateStr) {
             if (!dateStr || dateStr === "Unknown") return "Unknown Date";
             if (dateStr.includes('-')) {
@@ -96,11 +139,14 @@
             return dateStr;
         }
 
+        // --- Form Variables & Functions ---
         let selectedMeal = '';
         let selectedStatus = '';
         let selectedFedBy = '';
 
+        // *** On Load: Check if a user preference is already stored on this phone ***
         if (localStorage.getItem('lastFedBy')) {
+            // We set it with a slight delay so the DOM is ready for the class changes
             setTimeout(() => { setFedBy(localStorage.getItem('lastFedBy')); }, 100);
         }
 
@@ -119,23 +165,32 @@
             if(status === 'Skipped') btn.classList.add('bg-red-600', 'text-white', 'border-red-600');
         };
 
+        // ***********************************************
+        // *** REVISED: Person Selection Logic ***
+        // ***********************************************
         window.setFedBy = (person) => {
             selectedFedBy = person;
+            // Store the choice on this specific device
             localStorage.setItem('lastFedBy', person);
             
-            // Clear custom colors from all buttons
+            // First, reset all family buttons to their 'static' states (removing selection effects)
             document.querySelectorAll('.fed-btn').forEach(b => {
-                b.classList.remove('bg-emerald-800', 'bg-teal-600', 'bg-pink-400', 'text-white', 'border-emerald-800', 'border-teal-600', 'border-pink-400');
+                b.classList.remove('is-selected', 'is-dimmed');
             });
             
-            // Apply specific color depending on who is tapped
-            const btn = document.getElementById('btn-' + person);
-            if (person === 'Nick') btn.classList.add('bg-emerald-800', 'text-white', 'border-emerald-800');
-            if (person === 'Sam') btn.classList.add('bg-teal-600', 'text-white', 'border-teal-600');
-            if (person === 'Evie') btn.classList.add('bg-pink-400', 'text-white', 'border-pink-400');
+            // Now, apply the subtle pressed effect to only the tapped button
+            const selectedBtn = document.getElementById('btn-' + person);
+            selectedBtn.classList.add('is-selected');
+
+            // Apply the 'is-dimmed' class to the buttons that were NOT selected
+            document.querySelectorAll('.fed-btn').forEach(b => {
+                if(b !== selectedBtn) b.classList.add('is-dimmed');
+            });
         };
 
+        // Submits the form data to the Firebase collection named 'meals'
         window.submitLog = async () => {
+            // Validate all choices are made
             if (!selectedMeal || !selectedStatus || !selectedFedBy) {
                 alert("Select Meal, Status, and Who Fed Him!");
                 return;
@@ -145,58 +200,80 @@
             btn.disabled = true;
             btn.innerText = "UPDATING...";
 
+            // Create a Timestamp object from the selected calendar date
             const chosenDate = new Date(dateInput.value + 'T12:00:00'); 
 
             try {
+                // ADD THE NEW DOCUMENT TO FIRESTORE
                 await addDoc(collection(db, "meals"), {
-                    timestamp: Timestamp.fromDate(chosenDate),
-                    displayDate: dateInput.value,
+                    timestamp: Timestamp.fromDate(chosenDate), // Chronological sort key
+                    displayDate: dateInput.value, // Human-scannable data point
                     meal: selectedMeal,
                     status: selectedStatus,
-                    fedBy: selectedFedBy,
+                    fedBy: selectedFedBy, // The family member name
                     notes: document.getElementById('notes').value
                 });
+                
+                // Show the large success confirmation toast
                 toast.classList.remove('hidden');
                 
+                // --- RESET FORM (Meal & Status clear, but PERSON stays selected for ease) ---
                 selectedMeal = '';
                 selectedStatus = '';
                 document.getElementById('notes').value = '';
                 document.querySelectorAll('.meal-btn, .status-btn').forEach(b => b.classList.remove('bg-blue-600', 'bg-green-600', 'bg-red-600', 'bg-yellow-500', 'text-white', 'border-blue-600', 'border-green-600', 'border-red-600', 'border-yellow-500'));
+                
+                // Hide success toast automatically after 3 seconds
                 setTimeout(() => { toast.classList.add('hidden'); }, 3000);
             } catch (e) {
-                alert("Error saving data.");
+                alert("Error saving data. Please check your network or Firebase rules.");
             } finally {
                 btn.disabled = false;
                 btn.innerText = "Log Meal";
             }
         };
 
+        // --- View History Screen ---
+        
+        // Toggles between the data entry form and the scrollable list view
         window.toggleHistory = async () => {
             const hist = document.getElementById('history-container');
             const form = document.getElementById('form-container');
             if (hist.classList.contains('hidden')) {
                 hist.classList.remove('hidden');
                 form.classList.add('hidden');
-                loadHistory();
+                loadHistory(); // Fetch fresh data whenever the view is opened
             } else {
                 hist.classList.add('hidden');
                 form.classList.remove('hidden');
             }
         };
 
+        // Fetches and displays the most recent 50 meals chronologically
         async function loadHistory() {
             const list = document.getElementById('history-list');
-            list.innerHTML = "Loading...";
+            list.innerHTML = "Loading history...";
+            
+            // Query Firestore (Sort descending by the real timestamp key)
             const q = query(collection(db, "meals"), orderBy("timestamp", "desc"), limit(50));
             const snap = await getDocs(q);
-            list.innerHTML = "";
+            
+            list.innerHTML = ""; // Clear loader message
+            
+            // Generate and inject a card for each data document
             snap.forEach(doc => {
                 const d = doc.data();
+                
+                // --- Date Fail-Safe (Handles legacy logs cleanly) ---
                 const rawDate = d.displayDate || d.date || (d.timestamp ? d.timestamp.toDate().toLocaleDateString() : "Unknown");
-                const cleanDate = formatDate(rawDate);
+                const cleanDate = formatDate(rawDate); // Force American format
+                
+                // Append the feeder's name to the title if the field exists
                 const feederInfo = d.fedBy ? ` fed by ${d.fedBy}` : '';
                 
+                // Color-code the meal status text (Ate/Green, Skipped/Red, Partial/Yellow)
                 const colorClass = d.status === 'Ate' ? 'text-green-600' : (d.status === 'Skipped' ? 'text-red-600' : 'text-yellow-600');
+                
                 const card = `
                     <div class="border-b pb-2">
                         <div class="flex justify-between font-bold">
@@ -210,23 +287,35 @@
             });
         }
 
+        // --- Export Feature ---
+
+        // Generates a chronologically-sorted CSV file and triggers a mobile download
         window.exportData = async () => {
             const q = query(collection(db, "meals"), orderBy("timestamp", "asc"));
             const querySnapshot = await getDocs(q);
-            let csv = "Date,Meal,Status,Fed By,Notes\n";
+            
+            let csv = "Date,Meal,Status,Fed By,Notes\n"; // Column Headers
+            
             querySnapshot.forEach((doc) => {
                 const d = doc.data();
+                // Format data similarly to history (MM/DD/YYYY)
                 const rawDate = d.displayDate || d.date || (d.timestamp ? d.timestamp.toDate().toLocaleDateString() : "Unknown");
                 const cleanDate = formatDate(rawDate);
+                // Handle optional fields for older entries
                 const feeder = d.fedBy || "N/A";
-                csv += `${cleanDate},${d.meal},${d.status},${feeder},"${(d.notes || "").replace(/"/g, '""')}"\n`;
+                const note = (d.notes || "").replace(/"/g, '""'); // Escape existing quotes for valid CSV
+                
+                // Create the row string
+                csv += `${cleanDate},${d.meal},${d.status},${feeder},"${note}"\n`;
             });
+            
+            // MOBILE DOWNLOAD LOGIC (Generates a local blob URL)
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.setAttribute('href', url);
-            a.setAttribute('download', `porter_report.csv`);
-            a.click();
+            a.setAttribute('download', `porter_report_${new Date().toLocaleDateString()}.csv`);
+            a.click(); // Programmatically trigger the browser's download prompt
         };
     </script>
 </body>
