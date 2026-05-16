@@ -34,6 +34,15 @@
             </div>
 
             <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2 font-bold uppercase text-xs text-gray-500">Who Fed Him?</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="setFedBy('Nick')" id="btn-Nick" class="fed-btn border-2 py-3 rounded-lg text-sm font-bold border-gray-200 text-gray-600 transition-all">Nick</button>
+                    <button onclick="setFedBy('Sam')" id="btn-Sam" class="fed-btn border-2 py-3 rounded-lg text-sm font-bold border-gray-200 text-gray-600 transition-all">Sam</button>
+                    <button onclick="setFedBy('Evie')" id="btn-Evie" class="fed-btn border-2 py-3 rounded-lg text-sm font-bold border-gray-200 text-gray-600 transition-all">Evie</button>
+                </div>
+            </div>
+
+            <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2 font-bold text-xs uppercase text-gray-500">Notes (Optional)</label>
                 <textarea id="notes" class="w-full border-2 border-gray-200 rounded-lg p-3 h-24 focus:outline-none focus:border-blue-500" placeholder="e.g. Added toppers..."></textarea>
             </div>
@@ -78,7 +87,6 @@
         const dateInput = document.getElementById('meal-date');
         dateInput.value = new Date().toISOString().split('T')[0];
 
-        // Helper function to force MM/DD/YYYY
         function formatDate(dateStr) {
             if (!dateStr || dateStr === "Unknown") return "Unknown Date";
             if (dateStr.includes('-')) {
@@ -90,6 +98,11 @@
 
         let selectedMeal = '';
         let selectedStatus = '';
+        let selectedFedBy = '';
+
+        if (localStorage.getItem('lastFedBy')) {
+            setTimeout(() => { setFedBy(localStorage.getItem('lastFedBy')); }, 100);
+        }
 
         window.setMeal = (meal) => {
             selectedMeal = meal;
@@ -106,9 +119,25 @@
             if(status === 'Skipped') btn.classList.add('bg-red-600', 'text-white', 'border-red-600');
         };
 
+        window.setFedBy = (person) => {
+            selectedFedBy = person;
+            localStorage.setItem('lastFedBy', person);
+            
+            // Clear custom colors from all buttons
+            document.querySelectorAll('.fed-btn').forEach(b => {
+                b.classList.remove('bg-emerald-800', 'bg-teal-600', 'bg-pink-400', 'text-white', 'border-emerald-800', 'border-teal-600', 'border-pink-400');
+            });
+            
+            // Apply specific color depending on who is tapped
+            const btn = document.getElementById('btn-' + person);
+            if (person === 'Nick') btn.classList.add('bg-emerald-800', 'text-white', 'border-emerald-800');
+            if (person === 'Sam') btn.classList.add('bg-teal-600', 'text-white', 'border-teal-600');
+            if (person === 'Evie') btn.classList.add('bg-pink-400', 'text-white', 'border-pink-400');
+        };
+
         window.submitLog = async () => {
-            if (!selectedMeal || !selectedStatus) {
-                alert("Select Meal & Status first!");
+            if (!selectedMeal || !selectedStatus || !selectedFedBy) {
+                alert("Select Meal, Status, and Who Fed Him!");
                 return;
             }
             const btn = document.getElementById('submit-btn');
@@ -124,9 +153,11 @@
                     displayDate: dateInput.value,
                     meal: selectedMeal,
                     status: selectedStatus,
+                    fedBy: selectedFedBy,
                     notes: document.getElementById('notes').value
                 });
                 toast.classList.remove('hidden');
+                
                 selectedMeal = '';
                 selectedStatus = '';
                 document.getElementById('notes').value = '';
@@ -163,12 +194,13 @@
                 const d = doc.data();
                 const rawDate = d.displayDate || d.date || (d.timestamp ? d.timestamp.toDate().toLocaleDateString() : "Unknown");
                 const cleanDate = formatDate(rawDate);
+                const feederInfo = d.fedBy ? ` fed by ${d.fedBy}` : '';
                 
                 const colorClass = d.status === 'Ate' ? 'text-green-600' : (d.status === 'Skipped' ? 'text-red-600' : 'text-yellow-600');
                 const card = `
                     <div class="border-b pb-2">
                         <div class="flex justify-between font-bold">
-                            <span>${cleanDate} - ${d.meal}</span>
+                            <span>${cleanDate} - ${d.meal}<span class="text-xs text-gray-500 font-normal">${feederInfo}</span></span>
                             <span class="${colorClass}">${(d.status || 'Unknown').toUpperCase()}</span>
                         </div>
                         ${d.notes ? `<p class="text-xs text-gray-500 italic mt-1">${d.notes}</p>` : ''}
@@ -181,12 +213,13 @@
         window.exportData = async () => {
             const q = query(collection(db, "meals"), orderBy("timestamp", "asc"));
             const querySnapshot = await getDocs(q);
-            let csv = "Date,Meal,Status,Notes\n";
+            let csv = "Date,Meal,Status,Fed By,Notes\n";
             querySnapshot.forEach((doc) => {
                 const d = doc.data();
                 const rawDate = d.displayDate || d.date || (d.timestamp ? d.timestamp.toDate().toLocaleDateString() : "Unknown");
                 const cleanDate = formatDate(rawDate);
-                csv += `${cleanDate},${d.meal},${d.status},"${(d.notes || "").replace(/"/g, '""')}"\n`;
+                const feeder = d.fedBy || "N/A";
+                csv += `${cleanDate},${d.meal},${d.status},${feeder},"${(d.notes || "").replace(/"/g, '""')}"\n`;
             });
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
